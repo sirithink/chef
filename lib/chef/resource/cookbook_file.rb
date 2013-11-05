@@ -46,7 +46,6 @@ class Chef
       def cookbook(cookbook_name=nil)
         set_or_return(:cookbook, cookbook_name, :kind_of => String)
       end
-
     end
   end
 end

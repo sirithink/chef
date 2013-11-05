@@ -51,6 +51,7 @@ class Chef
         @atomic_update = Chef::Config[:file_atomic_update]
         @force_unlink = false
         @manage_symlink_source = nil
+        @enable_checksum = nil
         @diff = nil
       end
 
@@ -119,6 +120,13 @@ class Chef
         )
       end
 
+      def enable_checksum(arg=nil)
+        set_or_return(
+          :enable_checksum,
+          arg,
+          :kind_of => [ TrueClass, FalseClass ]
+        )
+      end
     end
   end
 end

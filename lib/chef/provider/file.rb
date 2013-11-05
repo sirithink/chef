@@ -1,4 +1,4 @@
-#
+
 # Author:: Adam Jacob (<adam@opscode.com>)
 # Author:: Lamont Granquist (<lamont@opscode.com>)
 # Copyright:: Copyright (c) 2008-2013 Opscode, Inc.
@@ -75,7 +75,8 @@ class Chef
         @current_resource ||= Chef::Resource::File.new(@new_resource.name)
         @current_resource.path(@new_resource.path)
         if ::File.exists?(@current_resource.path) && ::File.file?(::File.realpath(@current_resource.path))
-          if @action != :create_if_missing && @current_resource.respond_to?(:checksum)
+          if should_do_checksum?
+            Chef::Log.debug("#{@new_resource} checksumming file at #{@new_resource.path}.")
             @current_resource.checksum(checksum(@current_resource.path))
           end
           load_resource_attributes_from_file(@current_resource)
@@ -159,6 +160,48 @@ class Chef
 
       private
 
+      # Slightly overly-complicated logic for figuring out if we do a checksum.
+      # In order of precedence:
+      #
+      # 1.  if the user sets the checksum to a value, then we have to checksum
+      # 2.  if the user explicitly sets enable_checksum to true or false
+      # 3.  if the the user hasn't asked for either:
+      #   a.  under :create_if_missing, the presence of the file becomes :nothing so default to skipping
+      #   b.  if we are remote_file/template/cookbook_file we default to checksumming
+      #   c.  if we are a file resource without content then default to skipping
+      #   d.  otherwise default to checksumming
+      #
+      def resolve_enable_checksum
+        enable_checksum = @new_resource.enable_checksum
+        if @new_resource.checksum
+          enable_checksum = true     # setting explicit checksum on resource takes priority
+        elsif enable_checksum.nil?   # no checksum set and no enable_checksum set
+          case
+          when @action == :create_if_missing      # no point in checksumming
+            enable_checksum = false
+          when @new_resource.respond_to?(:source) # remote_file/template/cookbook_file
+            enable_checksum = true
+          when @new_resource.content.nil?         # must be file provider with no content
+            enable_checksum = false
+          else
+            enable_checksum = true
+          end
+        end
+        Chef::Log.debug "enable_checksum is #{enable_checksum ? "enabled" : "disabled"} on this resource#{@new_resource.enable_checksum ? " by default." : "."}"
+        enable_checksum
+      end
+
+      def enable_checksum
+        @enable_checksum = resolve_enable_checksum if @enable_checksum.nil?
+        @enable_checksum
+      end
+
+      def should_do_checksum?
+        return enable_checksum if @current_resource.respond_to?(:checksum)
+        # We may be a File::Provider::Directory
+        false
+      end
+
       # Handles resource requirements for action :create when some fs entry
       # already exists at the destination path. For actions other than create,
       # we don't care what kind of thing is at the destination path because:
@@ -240,8 +283,8 @@ class Chef
 
       def content
         @content ||= begin
-           load_current_resource if @current_resource.nil?
-           @content_class.new(@new_resource, @current_resource, @run_context)
+          load_current_resource if @current_resource.nil?
+          @content_class.new(@new_resource, @current_resource, @run_context)
         end
       end
 
@@ -330,7 +373,9 @@ class Chef
         do_backup unless file_created?
         deployment_strategy.deploy(tempfile.path, ::File.realpath(@new_resource.path))
         Chef::Log.info("#{@new_resource} updated file contents #{@new_resource.path}")
-        @new_resource.checksum(checksum(@new_resource.path)) # for reporting
+        if should_do_checksum?
+          @new_resource.checksum(checksum(@new_resource.path)) # for reporting
+        end
       end
 
       def do_contents_changes
@@ -379,7 +424,13 @@ class Chef
       end
 
       def contents_changed?
-        checksum(tempfile.path) != @current_resource.checksum
+        if should_do_checksum?
+          Chef::Log.debug "calculating checksum of #{tempfile.path} to compare with #{@current_resource.checksum}"
+          checksum(tempfile.path) != @current_resource.checksum
+        else
+          Chef::Log.debug "enable_checksum is false, comparing files by file size (WARNING: potentially unreliable)"
+          ::File.stat(tempfile.path).size != ::File.stat(@current_resource.path).size
+        end
       end
 
       def tempfile
@@ -387,6 +438,7 @@ class Chef
       end
 
       def short_cksum(checksum)
+        return "(checksum disabled)" if should_do_checksum? == false
         return "none" if checksum.nil?
         checksum.slice(0,6)
       end
