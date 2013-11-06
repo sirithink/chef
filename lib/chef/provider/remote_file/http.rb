@@ -68,14 +68,30 @@ class Chef
         private
 
         def update_cache_control_data(tempfile, response)
-          cache_control_data.checksum = Chef::Digester.checksum_for_file(tempfile.path)
-          cache_control_data.mtime = last_modified_time_from(response)
-          cache_control_data.etag = etag_from(response)
+          s = File.stat(tempfile.path)
+          if want_checksum?
+            cache_control_data.validation_checksum = Chef::Digester.checksum_for_file(tempfile.path)
+          end
+          cache_control_data.validation_mtime = s.mtime
+          cache_control_data.validation_size  = s.size
+          cache_control_data.mtime            = last_modified_time_from(response)
+          cache_control_data.etag             = etag_from(response)
           cache_control_data.save
         end
 
         def cache_control_data
-          @cache_control_data ||= CacheControlData.load_and_validate(uri, current_resource.checksum)
+          s = File.stat(tempfile.path)
+          validation_fields = {
+            :mtime => s.mtime
+            :size  => s.size
+          }
+          validation_fields[:checksum] = current_resource.checksum if want_checksums?
+          @cache_control_data ||= CacheControlData.load_and_validate(uri, validation_fields)
+        end
+
+        def want_checksums?
+          # FIXME: this misses all the logic in the provider
+          new_resource.enable_checksum
         end
 
         def want_mtime_cache_control?
