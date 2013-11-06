@@ -103,17 +103,17 @@ class Chef
           failed = false
 
           # FIXME: dry this up
-          if validation_fields.has_key(:checksum)
+          if validation_fields.has_key?(:checksum)
             if validation_fields[:checksum].nil? or validation_checksum != validation_fields[:checksum]
               failed = true
             end
           end
-          if validation_fields.has_key(:mtime)
+          if validation_fields.has_key?(:mtime)
             if validation_fields[:mtime].nil? or validation_mtime != validation_fields[:mtime]
               failed = true
             end
           end
-          if validation_fields.has_key(:size)
+          if validation_fields.has_key?(:size)
             if validation_fields[:size].nil? or validation_size != validation_fields[:size]
               failed = true
             end

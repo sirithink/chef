@@ -68,10 +68,11 @@ class Chef
         private
 
         def update_cache_control_data(tempfile, response)
-          s = File.stat(tempfile.path)
-          if want_checksum?
+          if want_checksums?
             cache_control_data.validation_checksum = Chef::Digester.checksum_for_file(tempfile.path)
           end
+          s = ::File.stat(tempfile.path)
+          # FIXME: if using cp to deploy the mtime on the dest will change
           cache_control_data.validation_mtime = s.mtime
           cache_control_data.validation_size  = s.size
           cache_control_data.mtime            = last_modified_time_from(response)
@@ -80,7 +81,7 @@ class Chef
         end
 
         def cache_control_data
-          s = File.stat(tempfile.path)
+          s = ::File.stat(current_resource.path)
           validation_fields = {
             :mtime => s.mtime,
             :size  => s.size,
