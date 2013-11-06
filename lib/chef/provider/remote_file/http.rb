@@ -82,8 +82,8 @@ class Chef
         def cache_control_data
           s = File.stat(tempfile.path)
           validation_fields = {
-            :mtime => s.mtime
-            :size  => s.size
+            :mtime => s.mtime,
+            :size  => s.size,
           }
           validation_fields[:checksum] = current_resource.checksum if want_checksums?
           @cache_control_data ||= CacheControlData.load_and_validate(uri, validation_fields)
