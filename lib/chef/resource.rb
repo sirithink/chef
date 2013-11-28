@@ -24,6 +24,8 @@ require 'chef/dsl/registry_helper'
 require 'chef/mixin/convert_to_class_name'
 require 'chef/resource/conditional'
 require 'chef/resource/conditional_action_not_nothing'
+require 'chef/resource/script_guard/powershell.rb'
+require 'chef/resource/script_guard/bash.rb'
 require 'chef/resource_collection'
 require 'chef/resource_platform_map'
 require 'chef/node'
@@ -125,6 +127,8 @@ F
     include Chef::Mixin::ParamsValidate
     include Chef::DSL::PlatformIntrospection
     include Chef::DSL::RegistryHelper
+    include Chef::Resource::Guard::Powershell
+    include Chef::Resource::Guard::Bash
     include Chef::Mixin::ConvertToClassName
     include Chef::Mixin::Deprecation
 

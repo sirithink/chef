@@ -45,6 +45,9 @@ class Chef
       def initialize(positivity, command=nil, command_opts={}, &block)
         @positivity = positivity
         case command
+        when Chef::Resource::ScriptGuard
+          @command, @command_opts = command, command_opts
+          @block = nil
         when String
           @command, @command_opts = command, command_opts
           @block = nil
@@ -73,7 +76,11 @@ class Chef
       end
 
       def evaluate_command
-        shell_out(@command, @command_opts).status.success?
+        if command.kind_of? Chef::Resource::ScriptGuard
+          command.run_command(@command_opts)
+        else
+          shell_out(@command, @command_opts).status.success?
+        end
       rescue Chef::Exceptions::CommandTimeout
         Chef::Log.warn "Command '#{@command}' timed out"
         false
