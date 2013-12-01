@@ -19,20 +19,25 @@
 class Chef
   class Resource
     class ScriptGuard
-      
+
       protected
 
-      def initialize(guard_class, node, command=nil, architecture=nil)
+      def initialize(guard_resource_class, node, command=nil, architecture=nil)
         @node = node        
         @command = command
-        @guard_class = guard_class
+        @guard_resource_class = guard_resource_class
         @architecture = architecture
       end
 
       public
 
-      def command
-        @command
+      def self.script_guard_from_resource(script_resource, node, command, architecture)
+
+        Chef::Platform.find_provider_for_node(node, script_resource)
+        platform, version = Chef::Platform.find_platform_and_version(node)
+
+        guard_resource = Chef::Resource.resource_for_platform(script_resource, platform, version)
+        self.new(guard_resource, node, command, architecture)
       end
       
       def run_command(command_opts)
@@ -40,7 +45,7 @@ class Chef
 
         run_context = Chef::RunContext.new(@node, {}, events)
 
-        guard_resource = @guard_class.new("chefscript" + @guard_class.to_s, run_context)
+        guard_resource = @guard_resource_class.new("chefscriptguard" + @guard_resource_class.to_s, run_context)
 
         guard_resource.code @command
         guard_resource.architecture @architecture if @architecture
