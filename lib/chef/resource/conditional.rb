@@ -29,12 +29,12 @@ class Chef
         private :new
       end
 
-      def self.not_if(command=nil, command_opts={}, &block)
-        new(:not_if, command, command_opts, &block)
+      def self.not_if(script_guard=nil, command=nil, command_opts={}, &block)
+        new(:not_if, script_guard, command, command_opts, &block)
       end
 
-      def self.only_if(command=nil, command_opts={}, &block)
-        new(:only_if, command, command_opts, &block)
+      def self.only_if(script_guard=nil, command=nil, command_opts={}, &block)
+        new(:only_if, script_guard, command, command_opts, &block)
       end
 
       attr_reader :positivity
@@ -42,12 +42,10 @@ class Chef
       attr_reader :command_opts
       attr_reader :block
 
-      def initialize(positivity, command=nil, command_opts={}, &block)
+      def initialize(positivity, script_guard, command=nil, command_opts={}, &block)
         @positivity = positivity
+        @script_guard = script_guard
         case command
-        when Chef::Resource::ScriptGuard
-          @command, @command_opts = command, command_opts
-          @block = nil
         when String
           @command, @command_opts = command, command_opts
           @block = nil
@@ -76,10 +74,11 @@ class Chef
       end
 
       def evaluate_command
-        if command.kind_of? Chef::Resource::ScriptGuard
-          command.run_command(@command_opts)
-        else
+        if @script_guard.nil?
           shell_out(@command, @command_opts).status.success?
+        else
+          @script_guard.run_command(@command, @command_opts)
+          @script_guard.last_command_succeeded?
         end
       rescue Chef::Exceptions::CommandTimeout
         Chef::Log.warn "Command '#{@command}' timed out"

@@ -20,34 +20,20 @@ class Chef
   class Resource
     class ScriptGuard
 
-      protected
+      def initialize(parent_resource, node, guard_resource_class_id)
+        @last_command_succeeded = false
+        @parent_resource_name = parent_resource.name
+        @guard_resource_class = resource_class_from_id(guard_resource_class_id, node)
+        @architecture = parent_resource.respond_to?(:architecture) ? parent_resource.architecture : nil
 
-      def initialize(guard_resource_class, node, command=nil, architecture=nil)
-        @node = node        
-        @command = command
-        @guard_resource_class = guard_resource_class
-        @architecture = architecture
-      end
-
-      public
-
-      def self.script_guard_from_resource(script_resource, node, command, architecture)
-
-        Chef::Platform.find_provider_for_node(node, script_resource)
-        platform, version = Chef::Platform.find_platform_and_version(node)
-
-        guard_resource = Chef::Resource.resource_for_platform(script_resource, platform, version)
-        self.new(guard_resource, node, command, architecture)
-      end
-      
-      def run_command(command_opts)
         events = Chef::EventDispatch::Dispatcher.new
+        @run_context = Chef::RunContext.new(node, {}, events)
+      end
 
-        run_context = Chef::RunContext.new(@node, {}, events)
+      def run_command(command, command_opts)
+        guard_resource = @guard_resource_class.new("chefscriptguard-" + @guard_resource_class.to_s + "-" + @parent_resource_name, @run_context)
 
-        guard_resource = @guard_resource_class.new("chefscriptguard" + @guard_resource_class.to_s, run_context)
-
-        guard_resource.code @command
+        guard_resource.code command
         guard_resource.architecture @architecture if @architecture
         guard_resource.returns 0
 
@@ -68,7 +54,22 @@ class Chef
           command_success = false
         end
 
+        @last_command_succeeded = command_success
         command_success
+      end
+
+      def last_command_succeeded?
+        @last_command_succeeded
+      end
+
+      protected
+
+      def resource_class_from_id(resource_class_id, node)
+        Chef::Platform.find_provider_for_node(node, resource_class_id)
+
+        platform, version = Chef::Platform.find_platform_and_version(node)
+
+        Chef::Resource.resource_for_platform(resource_class_id, platform, version)
       end
     end
   end

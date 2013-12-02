@@ -552,12 +552,12 @@ F
     def only_if(*args, &block)
       normalized_arguments = get_overloaded_method_arguments(*args)
       script_resource, command, opts = normalized_arguments[0], normalized_arguments[1], normalized_arguments[2]
+      script_guard = Chef::Resource::ScriptGuard.new(self, node, script_resource) if script_resource
 
-      if script_resource
-        only_if_custom_script(script_resource, command, opts)
-      else
-        only_if_default_script(command, opts, &block)
+      if command || block_given?
+        @only_if << Conditional.only_if(script_guard, command, opts, &block)
       end
+      @only_if
     end
 
     # If command is a block, returns false if the block returns true, true if it returns false.
@@ -577,12 +577,12 @@ F
     def not_if(*args, &block)
       normalized_arguments = get_overloaded_method_arguments(*args)
       script_resource, command, opts = normalized_arguments[0], normalized_arguments[1], normalized_arguments[2]
+      script_guard = Chef::Resource::ScriptGuard.new(self, node, script_resource) if script_resource
 
-      if script_resource
-        not_if_custom_script(script_resource, command, opts)
-      else
-        not_if_default_script(command, opts, &block)
+      if command || block_given?
+        @not_if << Conditional.not_if(script_guard, command, opts, &block)
       end
+      @not_if
     end
 
     def defined_at
@@ -848,39 +848,5 @@ F
       [script_resource, command, opts]
     end
 
-    def only_if_default_script(command=nil, opts={}, &block)
-      if command || block_given?
-        @only_if << Conditional.only_if(command, opts, &block)
-      end
-      @only_if
-    end
-
-    def not_if_default_script(command=nil, opts={}, &block)
-      if command || block_given?
-        @not_if << Conditional.not_if(command, opts, &block)
-      end
-      @not_if
-    end
-
-    def only_if_custom_script(script_resource, command=nil, opts={})
-      if command
-        script_guard = script_guard_from_resource(script_resource, command)
-        @only_if << Conditional.only_if(script_guard, opts, &nil)
-      end
-      @only_if
-    end
-
-    def not_if_custom_script(script_resource, command=nil, opts={})
-      if command
-        script_guard = script_guard_from_resource(script_resource, command)
-        @not_if << Conditional.not_if(script_guard, opts, &nil)
-      end
-      @not_if
-    end
-
-    def script_guard_from_resource(script_resource, command)
-      script_architecture = self.respond_to?(:architecture) ? self.architecture : nil
-      ScriptGuard.script_guard_from_resource(script_resource, node, command, script_architecture)
-    end
   end
 end
