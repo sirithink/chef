@@ -23,7 +23,7 @@ class Chef
       def initialize(parent_resource, node, guard_resource_class_id)
         @last_command_succeeded = false
         @parent_resource_name = parent_resource.name
-        @guard_resource_class = resource_class_from_id(guard_resource_class_id, node)
+        @guard_resource_class = resource_class_from_id(node, guard_resource_class_id)
         @architecture = parent_resource.respond_to?(:architecture) ? parent_resource.architecture : nil
 
         events = Chef::EventDispatch::Dispatcher.new
@@ -64,7 +64,7 @@ class Chef
 
       protected
 
-      def resource_class_from_id(resource_class_id, node)
+      def resource_class_from_id(node, resource_class_id)
         Chef::Platform.find_provider_for_node(node, resource_class_id)
 
         platform, version = Chef::Platform.find_platform_and_version(node)

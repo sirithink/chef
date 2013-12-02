@@ -400,6 +400,19 @@ F
       ignore_failure(arg)
     end
 
+    def guard_resource(arg=nil)
+      klass = if arg.kind_of?(String) || arg.kind_of?(Symbol)
+                Chef::Resource::ScriptGuard.new(self, node, arg)
+              else
+                arg
+              end
+      set_or_return(
+        :guard_resource,
+        klass,
+        :kind_of => [ Chef::Resource::ScriptGuard ]
+      )
+    end
+
     # Sets up a notification from this resource to the resource specified by +resource_spec+.
     def notifies(action, resource_spec, timing=:delayed)
       # when using old-style resources(:template => "/foo.txt") style, you
@@ -549,13 +562,9 @@ F
     # === Evaluation
     # * evaluates to true if the block is true, or if the command returns 0
     # * evaluates to false if the block is false, or if the command returns a non-zero exit code.
-    def only_if(*args, &block)
-      normalized_arguments = get_overloaded_method_arguments(*args)
-      script_resource, command, opts = normalized_arguments[0], normalized_arguments[1], normalized_arguments[2]
-      script_guard = Chef::Resource::ScriptGuard.new(self, node, script_resource) if script_resource
-
+    def only_if(command=nil, opts={}, &block)
       if command || block_given?
-        @only_if << Conditional.only_if(script_guard, command, opts, &block)
+        @only_if << Conditional.only_if(guard_resource, command, opts, &block)
       end
       @only_if
     end
@@ -574,13 +583,9 @@ F
     # === Evaluation
     # * evaluates to true if the block is false, or if the command returns a non-zero exit status.
     # * evaluates to false if the block is true, or if the command returns a 0 exit status.
-    def not_if(*args, &block)
-      normalized_arguments = get_overloaded_method_arguments(*args)
-      script_resource, command, opts = normalized_arguments[0], normalized_arguments[1], normalized_arguments[2]
-      script_guard = Chef::Resource::ScriptGuard.new(self, node, script_resource) if script_resource
-
+    def not_if(command=nil, opts={}, &block)
       if command || block_given?
-        @not_if << Conditional.not_if(script_guard, command, opts, &block)
+        @not_if << Conditional.not_if(guard_resource, command, opts, &block)
       end
       @not_if
     end
@@ -847,6 +852,5 @@ F
 
       [script_resource, command, opts]
     end
-
   end
 end
