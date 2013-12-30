@@ -313,7 +313,8 @@ class Chef
 
        def merged_attributes
          @merged_attributes ||= begin
-                                  components = [merge_defaults, @normal, merge_overrides, @automatic]
+                                  dupped_normal = @normal.dup
+                                  components = [merge_defaults, dupped_normal, merge_overrides, @automatic]
                                   resolved_attrs = components.inject(Mash.new) do |merged, component|
                                     Chef::Mixin::DeepMerge.hash_only_merge(merged, component)
                                   end
