@@ -35,6 +35,7 @@ require 'chef/http/cookie_manager'
 require 'chef/config'
 require 'chef/exceptions'
 require 'chef/platform/query_helpers'
+require 'chef/http/actionlog_header'
 
 class Chef
   # == Chef::REST
@@ -57,17 +58,19 @@ class Chef
     def initialize(url, client_name=Chef::Config[:node_name], signing_key_filename=Chef::Config[:client_key], options={})
       options[:client_name] = client_name
       options[:signing_key_filename] = signing_key_filename
-      @run_id = options[:run_id]
       super(url, options)
 
       @decompressor = Decompressor.new(options)
       @authenticator = Authenticator.new(options)
+      @actionlog_header = ActionlogHeader.new(options)
 
       @middlewares << JSONInput.new(options)
       @middlewares << JSONToModelOutput.new(options)
       @middlewares << CookieManager.new(options)
       @middlewares << @decompressor
       @middlewares << @authenticator
+      @middlewares << @actionlog_header
+
     end
 
     def signing_key_filename
@@ -131,7 +134,7 @@ class Chef
     def raw_http_request(method, path, headers, data)
       url = create_url(path)
       method, url, headers, data = @authenticator.handle_request(method, url, headers, data)
-
+      method, url, headers, data = @actionlog_header.handle_request(method, url, headers, data)
       response, rest_request, return_value = send_http_request(method, url, headers, data)
       response.error! unless success_response?(response)
       return_value
