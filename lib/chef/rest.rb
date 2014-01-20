@@ -57,6 +57,7 @@ class Chef
     def initialize(url, client_name=Chef::Config[:node_name], signing_key_filename=Chef::Config[:client_key], options={})
       options[:client_name] = client_name
       options[:signing_key_filename] = signing_key_filename
+      @run_id = options[:run_id]
       super(url, options)
 
       @decompressor = Decompressor.new(options)
