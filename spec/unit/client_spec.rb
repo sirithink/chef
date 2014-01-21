@@ -47,6 +47,7 @@ shared_examples_for Chef::Client do
 
     @client = Chef::Client.new
     @client.node = @node
+    @run_id = SecureRandom.uuid
   end
 
   describe "authentication protocol selection" do
@@ -172,6 +173,7 @@ shared_examples_for Chef::Client do
       mock_chef_rest_for_cookbook_sync = mock("Chef::REST (cookbook sync)")
       mock_chef_rest_for_node_save = mock("Chef::REST (node save)")
       mock_chef_runner = mock("Chef::Runner")
+      mock_run_id= mock("SecureRandom")
 
       # --Client.register
       #   Make sure Client#register thinks the client key doesn't
@@ -183,7 +185,9 @@ shared_examples_for Chef::Client do
       #   Client.register will then turn around create another
       #   Chef::REST object, this time with the client key it got from the
       #   previous step.
-      Chef::REST.should_receive(:new).with(Chef::Config[:chef_server_url], @fqdn, Chef::Config[:client_key]).exactly(1).and_return(mock_chef_rest_for_node)
+      SecureRandom.should_receive(:uuid).exactly(1).and_return(mock_run_id)
+      Chef::REST.should_receive(:new).with(Chef::Config[:chef_server_url], @fqdn, Chef::Config[:client_key],
+                                           {:run_id => mock_run_id}).exactly(1).and_return(mock_chef_rest_for_node)
 
       # --Client#build_node
       #   looks up the node, which we will return, then later saves it.
